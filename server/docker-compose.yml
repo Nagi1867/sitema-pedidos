@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    container_name: restaurante-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: restaurante
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d restaurante"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: restaurante-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://db:5432/restaurante
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      PORT: 8080
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
