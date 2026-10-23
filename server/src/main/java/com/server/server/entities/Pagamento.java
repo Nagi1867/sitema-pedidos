@@ -1,5 +1,6 @@
 package com.server.server.entities;
 
+import com.server.server.entities.enums.MetodoPagamento;
 import com.server.server.entities.enums.StatusPagamento;
 import jakarta.persistence.*;
 
