@@ -4,6 +4,11 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 @Entity
 @Table(name = "produtos")
 public class Produto {
@@ -12,12 +17,17 @@ public class Produto {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "O nome do produto é obrigatório")
+    @Size(max = 120, message = "O nome deve ter no máximo 120 caracteres")
     @Column(nullable = false, length = 120)
     private String nome;
 
+    @Size(max = 500, message = "A descrição deve ter no máximo 500 caracteres")
     @Column(length = 500)
     private String descricao;
 
+    @NotNull(message = "O preço do produto é obrigatório")
+    @DecimalMin(value = "0.00", inclusive = false, message = "O preço deve ser maior que zero")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 

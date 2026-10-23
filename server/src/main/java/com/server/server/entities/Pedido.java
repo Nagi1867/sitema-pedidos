@@ -1,5 +1,6 @@
 package com.server.server.entities;
 
+import com.server.server.entities.enums.StatusPedido;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
