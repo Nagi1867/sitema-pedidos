@@ -15,6 +15,7 @@ import { mesaService } from "../services/api";
 
 function Mesas() {
   const [mesas, setMesas] = useState([]);
+  const [comandas, setComandas] = useState([]);
   const [numero, setNumero] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -28,10 +29,21 @@ function Mesas() {
     setErro("");
 
     try {
-      const dados = await mesaService.listar();
-      setMesas(dados);
+      const [dadosMesas, respostaComandas] = await Promise.all([
+        mesaService.listar(),
+        fetch("/api/comandas"),
+      ]);
+
+      if (!respostaComandas.ok) {
+        throw new Error("Não foi possível carregar as comandas.");
+      }
+
+      const dadosComandas = await respostaComandas.json();
+
+      setMesas(dadosMesas);
+      setComandas(Array.isArray(dadosComandas) ? dadosComandas : []);
     } catch (error) {
-      setErro(error.message);
+      setErro(error.message || "Não foi possível carregar os dados.");
     } finally {
       setCarregando(false);
     }
@@ -40,6 +52,18 @@ function Mesas() {
   useEffect(() => {
     carregarMesas();
   }, []);
+
+  function buscarComandaAberta(mesaId) {
+    return comandas.find((item) => {
+      const idMesa = item.mesa?.id ?? item.mesaId;
+      const status = item.status ?? item.statusComanda;
+
+      return (
+        String(idMesa) === String(mesaId) &&
+        ["ABERTA", "AGUARDANDO_PAGAMENTO"].includes(status)
+      );
+    });
+  }
 
   async function cadastrarMesa(event) {
     event.preventDefault();
@@ -97,6 +121,28 @@ function Mesas() {
     setSucesso("");
 
     try {
+      const comandaExistente = buscarComandaAberta(mesa.id);
+
+      if (comandaExistente) {
+        if (!comandaExistente.codigoAcesso) {
+          throw new Error(
+            "A comanda existente não possui um código de acesso."
+          );
+        }
+
+        setComanda({
+          ...comandaExistente,
+          numeroMesa: mesa.numero,
+        });
+
+        setSucesso(`Comanda existente da mesa ${mesa.numero} carregada.`);
+        return;
+      }
+
+      if (!mesa.ativa) {
+        throw new Error("Ative a mesa antes de abrir uma nova comanda.");
+      }
+
       const novaComanda = await mesaService.abrirComanda(mesa.id);
 
       if (!novaComanda.codigoAcesso) {
@@ -104,6 +150,8 @@ function Mesas() {
           "A comanda foi aberta, mas a API não retornou o código de acesso."
         );
       }
+
+      setComandas((atuais) => [...atuais, novaComanda]);
 
       setComanda({
         ...novaComanda,
@@ -266,7 +314,7 @@ function Mesas() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Gerencie a disponibilidade e abra novas comandas.
+              Gerencie a disponibilidade e acesse as comandas.
             </p>
           </div>
 
@@ -299,80 +347,87 @@ function Mesas() {
             {mesas
               .slice()
               .sort((a, b) => a.numero - b.numero)
-              .map((mesa) => (
-                <article
-                  key={mesa.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                        <Utensils size={23} />
+              .map((mesa) => {
+                const comandaAberta = buscarComandaAberta(mesa.id);
+
+                return (
+                  <article
+                    key={mesa.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                          <Utensils size={23} />
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900">
+                            Mesa {mesa.numero}
+                          </h3>
+
+                          <p className="text-xs text-slate-500">
+                            Identificação: {mesa.id}
+                          </p>
+                        </div>
                       </div>
 
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900">
-                          Mesa {mesa.numero}
-                        </h3>
-
-                        <p className="text-xs text-slate-500">
-                          Identificação: {mesa.id}
-                        </p>
-                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          mesa.ativa
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {mesa.ativa ? "Ativa" : "Inativa"}
+                      </span>
                     </div>
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        mesa.ativa
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {mesa.ativa ? "Ativa" : "Inativa"}
-                    </span>
-                  </div>
+                    <div className="mt-5 border-t border-slate-100 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => alterarAtividade(mesa)}
+                        disabled={operacaoMesa === mesa.id}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {operacaoMesa === mesa.id ? (
+                          <LoaderCircle
+                            size={17}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <Power size={17} />
+                        )}
 
-                  <div className="mt-5 border-t border-slate-100 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => alterarAtividade(mesa)}
-                      disabled={operacaoMesa === mesa.id}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      {operacaoMesa === mesa.id ? (
-                        <LoaderCircle
-                          size={17}
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <Power size={17} />
-                      )}
+                        {mesa.ativa ? "Desativar mesa" : "Ativar mesa"}
+                      </button>
 
-                      {mesa.ativa ? "Desativar mesa" : "Ativar mesa"}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => abrirComanda(mesa)}
+                        disabled={
+                          (!mesa.ativa && !comandaAberta) ||
+                          operacaoMesa === mesa.id
+                        }
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {operacaoMesa === mesa.id ? (
+                          <LoaderCircle
+                            size={17}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <QrCode size={17} />
+                        )}
 
-                    <button
-                      type="button"
-                      onClick={() => abrirComanda(mesa)}
-                      disabled={
-                        !mesa.ativa || operacaoMesa === mesa.id
-                      }
-                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {operacaoMesa === mesa.id ? (
-                        <LoaderCircle
-                          size={17}
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <QrCode size={17} />
-                      )}
-
-                      Abrir comanda
-                    </button>
-                  </div>
-                </article>
-              ))}
+                        {comandaAberta
+                          ? "Acessar comanda"
+                          : "Abrir comanda"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
           </div>
         )}
       </section>
@@ -398,11 +453,11 @@ function Mesas() {
                   id="qr-titulo"
                   className="text-xl font-bold text-slate-900"
                 >
-                  Comanda aberta
+                  Comanda da mesa {comanda.numeroMesa}
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Mesa {comanda.numeroMesa}
+                  Escaneie o QR Code para acessar a comanda.
                 </p>
               </div>
 
@@ -426,8 +481,8 @@ function Mesas() {
               />
             </div>
 
-            <p className="mt-4 text-center text-sm text-slate-600">
-              Escaneie o código para acessar o endereço da comanda.
+            <p className="mt-4 break-all text-center text-sm text-slate-600">
+              {enderecoComanda}
             </p>
 
             <div className="mt-5 rounded-xl bg-slate-50 p-4">
@@ -447,11 +502,6 @@ function Mesas() {
             >
               Imprimir QR Code
             </button>
-
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              O QR Code contém o endereço do frontend. A página de acesso
-              à comanda será implementada em uma próxima etapa.
-            </p>
           </div>
         </div>
       )}
