@@ -114,9 +114,12 @@ function formatarData(data) {
 
 function obterNumeroMesa(pedido) {
   return (
+    pedido?.clienteSessao?.comanda?.mesa?.numero ??
     pedido?.comanda?.mesa?.numero ??
     pedido?.comanda?.mesaNumero ??
-    "—"
+    pedido?.mesa?.numero ??
+    pedido?.mesaNumero ??
+    "Não identificada"
   );
 }
 

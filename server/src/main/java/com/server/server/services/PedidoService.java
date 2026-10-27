@@ -97,9 +97,6 @@ public class PedidoService {
         ClienteSessao clienteSessao = clienteSessaoRepository.findById(clienteSessaoId)
                 .orElseThrow(() -> new RuntimeException("Sessão do cliente não encontrada"));
 
-        if (!Boolean.TRUE.equals(clienteSessao.getAutorizado())) {
-            throw new RuntimeException("O cliente não está autorizado a fazer pedidos");
-        }
 
         Comanda comanda = clienteSessao.getComanda();
 

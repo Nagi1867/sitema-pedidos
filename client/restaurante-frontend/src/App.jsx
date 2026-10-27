@@ -16,7 +16,6 @@ const menuItems = [
   { label: "Comandas", icon: ClipboardList, path: "/comandas" },
   { label: "Produtos", icon: Package, path: "/produtos" },
   { label: "Clientes", icon: Users, path: "/clientes" },
-  { label: "Configurações", icon: Settings, path: "/configuracoes" },
   { label: "Pedidos", icon: ChefHat, path: "/pedidos" },
 ];
 

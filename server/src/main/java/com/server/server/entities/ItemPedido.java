@@ -1,5 +1,6 @@
 package com.server.server.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ public class ItemPedido {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "pedido_id", nullable = false)
+    @JsonIgnore
     private Pedido pedido;
 
     @ManyToOne(optional = false)

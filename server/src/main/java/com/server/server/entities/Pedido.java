@@ -1,9 +1,12 @@
 package com.server.server.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.server.server.entities.enums.StatusPedido;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "pedidos")
@@ -15,6 +18,7 @@ public class Pedido {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "comanda_id", nullable = false)
+    @JsonIgnore
     private Comanda comanda;
 
     @ManyToOne(optional = false)
@@ -30,6 +34,9 @@ public class Pedido {
 
     @Column(length = 500)
     private String observacao;
+
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL)
+    private List<ItemPedido> itens = new ArrayList<>();
 
     public Pedido() {
     }
@@ -72,5 +79,13 @@ public class Pedido {
 
     public void setObservacao(String observacao) {
         this.observacao = observacao;
+    }
+
+    public List<ItemPedido> getItens() {
+        return itens;
+    }
+
+    public void setItens(List<ItemPedido> itens) {
+        this.itens = itens;
     }
 }

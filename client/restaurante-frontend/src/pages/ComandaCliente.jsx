@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   CheckCircle2,
-  Clock,
   Minus,
   Plus,
   ShoppingBag,
@@ -119,7 +118,7 @@ function ComandaCliente() {
         setSessao(dadosSessao);
       } catch {
         if (ativo) {
-          setErro("Não foi possível verificar sua autorização.");
+          setErro("Não foi possível verificar sua sessão.");
         }
       }
     };
@@ -136,7 +135,7 @@ function ComandaCliente() {
     if (comanda?.id) {
       carregarPedidos(comanda.id);
     }
-  }, [comanda?.id, sessao?.autorizado, carregarPedidos]);
+  }, [comanda?.id, carregarPedidos]);
 
   const alterarQuantidade = (produtoId, variacao) => {
     setCarrinho((atual) => {
@@ -184,15 +183,15 @@ function ComandaCliente() {
 
       setSessao(novaSessao);
       localStorage.setItem(chaveSessao, novaSessao.tokenAcesso);
-      setMensagem("Solicitação enviada. Aguarde a autorização da equipe.");
+      setMensagem("Você entrou na comanda e já pode fazer seus pedidos.");
     } catch (error) {
       setErro(error.message || "Não foi possível entrar na comanda.");
     }
   };
 
   const enviarPedido = async () => {
-    if (!sessao?.autorizado) {
-      setErro("Sua sessão ainda não foi autorizada.");
+    if (!sessao?.id) {
+      setErro("Informe seu nome para entrar na comanda antes de pedir.");
       return;
     }
 
@@ -286,7 +285,7 @@ function ComandaCliente() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Informe seu nome para solicitar acesso à comanda desta mesa.
+              Informe seu nome para identificar seus pedidos nesta mesa.
             </p>
 
             <form
@@ -296,7 +295,7 @@ function ComandaCliente() {
               <input
                 value={nome}
                 onChange={(evento) => setNome(evento.target.value)}
-                maxLength={100}
+                maxLength={80}
                 placeholder="Seu nome"
                 className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
                 required
@@ -306,7 +305,7 @@ function ComandaCliente() {
                 type="submit"
                 className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
               >
-                Solicitar acesso
+                Entrar na comanda
               </button>
             </form>
           </section>
@@ -314,11 +313,7 @@ function ComandaCliente() {
 
         {sessao && (
           <section className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            {sessao.autorizado ? (
-              <CheckCircle2 className="mt-1 text-emerald-600" size={24} />
-            ) : (
-              <Clock className="mt-1 text-amber-500" size={24} />
-            )}
+            <CheckCircle2 className="mt-1 text-emerald-600" size={24} />
 
             <div>
               <h2 className="font-bold text-slate-900">
@@ -326,9 +321,7 @@ function ComandaCliente() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                {sessao.autorizado
-                  ? "Seu acesso foi autorizado. Você já pode enviar pedidos."
-                  : "Sua solicitação está aguardando autorização da equipe."}
+                Você já pode escolher produtos e enviar seus pedidos.
               </p>
             </div>
           </section>
@@ -475,11 +468,11 @@ function ComandaCliente() {
               <button
                 type="button"
                 onClick={enviarPedido}
-                disabled={!sessao?.autorizado || enviando}
+                disabled={!sessao?.id || enviando}
                 className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {!sessao?.autorizado
-                  ? "Aguardando autorização"
+                {!sessao?.id
+                  ? "Entre na comanda para pedir"
                   : enviando
                     ? "Enviando pedido..."
                     : "Enviar pedido"}
@@ -519,6 +512,12 @@ function ComandaCliente() {
                       ? new Date(pedido.dataPedido).toLocaleString("pt-BR")
                       : ""}
                   </p>
+
+                  {pedido.clienteSessao?.nome && (
+                    <p className="mt-2 text-sm text-slate-600">
+                      Pedido feito por: {pedido.clienteSessao.nome}
+                    </p>
+                  )}
 
                   {pedido.observacao && (
                     <p className="mt-2 text-sm text-slate-600">
