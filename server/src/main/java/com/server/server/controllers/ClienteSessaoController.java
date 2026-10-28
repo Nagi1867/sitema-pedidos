@@ -28,9 +28,9 @@ public class ClienteSessaoController {
         return ResponseEntity.ok(clienteSessaoService.findById(id));
     }
 
-    @GetMapping("/token/{tokenAcesso}")
-    public ResponseEntity<ClienteSessao> findByTokenAcesso(
-            @PathVariable String tokenAcesso
+    @GetMapping("/me")
+    public ResponseEntity<ClienteSessao> buscarMinhaSessao(
+            @RequestHeader("X-Cliente-Token") String tokenAcesso
     ) {
         return ResponseEntity.ok(
                 clienteSessaoService.findByTokenAcesso(tokenAcesso)

@@ -21,13 +21,11 @@ async function request(endpoint, options = {}) {
     }
 
     if (response.status === 401) {
-      localStorage.removeItem("adminAutenticado");
+      const rotaCliente = window.location.pathname.startsWith("/comanda/");
+      const rotaLogin = window.location.pathname === "/login";
 
-      const rotaPublica =
-        window.location.pathname.startsWith("/comanda/") ||
-        window.location.pathname === "/login";
-
-      if (!rotaPublica) {
+      if (!rotaCliente && !rotaLogin) {
+        localStorage.removeItem("adminAutenticado");
         window.location.href = "/login";
       }
     }
@@ -103,17 +101,27 @@ export const comandaClienteService = {
     }),
 
   buscarSessao: (tokenAcesso) =>
-    request(`/sessoes/token/${encodeURIComponent(tokenAcesso)}`),
+    request("/sessoes/me", {
+      headers: {
+        "X-Cliente-Token": tokenAcesso,
+      },
+    }),
 
-  listarProdutos: () =>
-    request("/produtos/disponiveis"),
+  listarProdutos: () => request("/produtos/disponiveis"),
 
-  listarPedidos: (comandaId) =>
-    request(`/pedidos/comanda/${comandaId}`),
+  listarPedidos: (tokenAcesso) =>
+    request("/pedidos/meus", {
+      headers: {
+        "X-Cliente-Token": tokenAcesso,
+      },
+    }),
 
-  criarPedido: (clienteSessaoId, produtos, observacao) =>
-    request(`/pedidos/participante/${clienteSessaoId}`, {
+  criarPedido: (tokenAcesso, produtos, observacao) =>
+    request("/pedidos/participante", {
       method: "POST",
+      headers: {
+        "X-Cliente-Token": tokenAcesso,
+      },
       body: JSON.stringify({
         produtos,
         observacao,

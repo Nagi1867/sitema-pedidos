@@ -32,10 +32,15 @@ function ComandaCliente() {
 
   const chaveSessao = `comanda-sessao-${codigoAcesso}`;
 
-  const carregarPedidos = useCallback(async (comandaId) => {
+  const carregarPedidos = useCallback(async (tokenAcesso) => {
+    if (!tokenAcesso) {
+      setPedidos([]);
+      return;
+    }
+
     try {
       const resultado =
-        await comandaClienteService.listarPedidos(comandaId);
+        await comandaClienteService.listarPedidos(tokenAcesso);
 
       setPedidos(Array.isArray(resultado) ? resultado : []);
     } catch {
@@ -70,18 +75,29 @@ function ComandaCliente() {
 
             if (!ativo) return;
 
-            if (dadosSessao.comanda?.id === dadosComanda.id) {
+            if (
+              dadosSessao.comanda?.id === dadosComanda.id &&
+              dadosSessao.tokenAcesso
+            ) {
               setSessao(dadosSessao);
               setNome(dadosSessao.nome || "");
+              await carregarPedidos(dadosSessao.tokenAcesso);
             } else {
               localStorage.removeItem(chaveSessao);
+              setSessao(null);
+              setPedidos([]);
             }
           } catch {
-            localStorage.removeItem(chaveSessao);
-          }
-        }
+            if (!ativo) return;
 
-        await carregarPedidos(dadosComanda.id);
+            localStorage.removeItem(chaveSessao);
+            setSessao(null);
+            setPedidos([]);
+          }
+        } else {
+          setSessao(null);
+          setPedidos([]);
+        }
       } catch (error) {
         if (ativo) {
           setErro(
@@ -108,34 +124,42 @@ function ComandaCliente() {
 
     let ativo = true;
 
-    const verificarSessao = async () => {
+    const atualizarDados = async () => {
       try {
         const dadosSessao =
           await comandaClienteService.buscarSessao(sessao.tokenAcesso);
 
         if (!ativo) return;
 
+        if (dadosSessao.comanda?.id !== comanda?.id) {
+          localStorage.removeItem(chaveSessao);
+          setSessao(null);
+          setPedidos([]);
+          setErro("Sua sessão não corresponde a esta comanda.");
+          return;
+        }
+
         setSessao(dadosSessao);
+        await carregarPedidos(sessao.tokenAcesso);
       } catch {
         if (ativo) {
-          setErro("Não foi possível verificar sua sessão.");
+          setErro("Não foi possível atualizar seus pedidos.");
         }
       }
     };
 
-    const intervalo = window.setInterval(verificarSessao, 5000);
+    const intervalo = window.setInterval(atualizarDados, 5000);
 
     return () => {
       ativo = false;
       window.clearInterval(intervalo);
     };
-  }, [sessao?.tokenAcesso]);
-
-  useEffect(() => {
-    if (comanda?.id) {
-      carregarPedidos(comanda.id);
-    }
-  }, [comanda?.id, carregarPedidos]);
+  }, [
+    sessao?.tokenAcesso,
+    comanda?.id,
+    chaveSessao,
+    carregarPedidos,
+  ]);
 
   const alterarQuantidade = (produtoId, variacao) => {
     setCarrinho((atual) => {
@@ -181,17 +205,24 @@ function ComandaCliente() {
         nome.trim()
       );
 
-      setSessao(novaSessao);
+      if (!novaSessao.tokenAcesso) {
+        throw new Error("Não foi possível obter o token da sua sessão.");
+      }
+
       localStorage.setItem(chaveSessao, novaSessao.tokenAcesso);
+      setSessao(novaSessao);
+      setNome(novaSessao.nome || nome.trim());
       setMensagem("Você entrou na comanda e já pode fazer seus pedidos.");
+
+      await carregarPedidos(novaSessao.tokenAcesso);
     } catch (error) {
       setErro(error.message || "Não foi possível entrar na comanda.");
     }
   };
 
   const enviarPedido = async () => {
-    if (!sessao?.id) {
-      setErro("Informe seu nome para entrar na comanda antes de pedir.");
+    if (!sessao?.tokenAcesso) {
+      setErro("Entre na comanda antes de enviar seu pedido.");
       return;
     }
 
@@ -213,7 +244,7 @@ function ComandaCliente() {
       );
 
       await comandaClienteService.criarPedido(
-        sessao.id,
+        sessao.tokenAcesso,
         produtosPedido,
         observacao.trim()
       );
@@ -221,7 +252,8 @@ function ComandaCliente() {
       setCarrinho({});
       setObservacao("");
       setMensagem("Pedido enviado com sucesso!");
-      await carregarPedidos(comanda.id);
+
+      await carregarPedidos(sessao.tokenAcesso);
     } catch (error) {
       setErro(error.message || "Não foi possível enviar seu pedido.");
     } finally {
@@ -341,7 +373,9 @@ function ComandaCliente() {
 
         <section>
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-slate-900">Nosso cardápio</h2>
+            <h2 className="text-xl font-bold text-slate-900">
+              Nosso cardápio
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
               Escolha os produtos que deseja pedir.
             </p>
@@ -375,7 +409,9 @@ function ComandaCliente() {
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span className="text-sm text-slate-500">Quantidade</span>
+                    <span className="text-sm text-slate-500">
+                      Quantidade
+                    </span>
 
                     <div className="flex items-center gap-3">
                       <button
@@ -468,10 +504,10 @@ function ComandaCliente() {
               <button
                 type="button"
                 onClick={enviarPedido}
-                disabled={!sessao?.id || enviando}
+                disabled={!sessao?.tokenAcesso || enviando}
                 className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {!sessao?.id
+                {!sessao?.tokenAcesso
                   ? "Entre na comanda para pedir"
                   : enviando
                     ? "Enviando pedido..."
@@ -482,13 +518,15 @@ function ComandaCliente() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900">
-            Pedidos da comanda
-          </h2>
+          <h2 className="text-xl font-bold text-slate-900">Seus pedidos</h2>
 
-          {pedidos.length === 0 ? (
+          {!sessao ? (
             <p className="mt-3 text-sm text-slate-500">
-              Ainda não há pedidos registrados nesta comanda.
+              Entre na comanda para acompanhar seus pedidos.
+            </p>
+          ) : pedidos.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">
+              Você ainda não fez pedidos nesta comanda.
             </p>
           ) : (
             <div className="mt-4 space-y-4">
@@ -513,12 +551,6 @@ function ComandaCliente() {
                       : ""}
                   </p>
 
-                  {pedido.clienteSessao?.nome && (
-                    <p className="mt-2 text-sm text-slate-600">
-                      Pedido feito por: {pedido.clienteSessao.nome}
-                    </p>
-                  )}
-
                   {pedido.observacao && (
                     <p className="mt-2 text-sm text-slate-600">
                       {pedido.observacao}
@@ -537,7 +569,8 @@ function ComandaCliente() {
 
                         <span className="text-slate-700">
                           {formatarMoeda(
-                            Number(item.precoUnitario) * Number(item.quantidade)
+                            Number(item.precoUnitario) *
+                              Number(item.quantidade)
                           )}
                         </span>
                       </div>

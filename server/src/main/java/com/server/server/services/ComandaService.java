@@ -21,12 +21,16 @@ public class ComandaService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    private final ContaClienteService contaClienteService;
+
     public ComandaService(
             ComandaRepository comandaRepository,
-            MesaRepository mesaRepository
+            MesaRepository mesaRepository,
+            ContaClienteService contaClienteService
     ) {
         this.comandaRepository = comandaRepository;
         this.mesaRepository = mesaRepository;
+        this.contaClienteService = contaClienteService;
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +90,12 @@ public class ComandaService {
 
         if (comanda.getStatus() != StatusComanda.ABERTA) {
             throw new RuntimeException("A comanda não está aberta");
+        }
+
+        if (!contaClienteService.todosPagos(id)) {
+            throw new RuntimeException(
+                    "Não é possível encerrar a comanda: existem contas com saldo pendente"
+            );
         }
 
         comanda.setStatus(StatusComanda.FECHADA);

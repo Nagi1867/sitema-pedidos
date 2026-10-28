@@ -72,6 +72,13 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
+    public List<Pedido> findByTokenAcesso(String tokenAcesso) {
+        ClienteSessao clienteSessao = buscarSessaoPorToken(tokenAcesso);
+
+        return pedidoRepository.findByClienteSessaoId(clienteSessao.getId());
+    }
+
+    @Transactional(readOnly = true)
     public List<Pedido> findByStatus(StatusPedido status) {
         if (status == null) {
             throw new RuntimeException("O status do pedido deve ser informado");
@@ -82,10 +89,12 @@ public class PedidoService {
 
     @Transactional
     public Pedido criarPedido(
-            Long clienteSessaoId,
+            String tokenAcesso,
             Map<Long, Integer> produtosSolicitados,
             String observacao
     ) {
+        ClienteSessao clienteSessao = buscarSessaoPorToken(tokenAcesso);
+
         if (produtosSolicitados == null || produtosSolicitados.isEmpty()) {
             throw new RuntimeException("O pedido deve conter pelo menos um produto");
         }
@@ -93,10 +102,6 @@ public class PedidoService {
         if (observacao != null && observacao.length() > 500) {
             throw new RuntimeException("A observação deve ter no máximo 500 caracteres");
         }
-
-        ClienteSessao clienteSessao = clienteSessaoRepository.findById(clienteSessaoId)
-                .orElseThrow(() -> new RuntimeException("Sessão do cliente não encontrada"));
-
 
         Comanda comanda = clienteSessao.getComanda();
 
@@ -152,8 +157,6 @@ public class PedidoService {
             item.setPedido(pedido);
             item.setProduto(produto);
             item.setQuantidade(quantidade);
-
-            // Salva o preço vigente no momento da solicitação.
             item.setPrecoUnitario(produto.getPreco());
 
             itemPedidoRepository.save(item);
@@ -219,6 +222,17 @@ public class PedidoService {
         pedido.setStatus(novoStatus);
 
         return pedidoRepository.save(pedido);
+    }
+
+    private ClienteSessao buscarSessaoPorToken(String tokenAcesso) {
+        if (tokenAcesso == null || tokenAcesso.isBlank()) {
+            throw new RuntimeException("Token de acesso não informado");
+        }
+
+        return clienteSessaoRepository.findByTokenAcesso(tokenAcesso)
+                .orElseThrow(() -> new RuntimeException(
+                        "Sessão do cliente não encontrada ou token inválido"
+                ));
     }
 
     private BigDecimal calcularValorPedido(Long pedidoId) {

@@ -34,7 +34,9 @@ public class PedidoController {
     public ResponseEntity<List<Pedido>> findByComanda(
             @PathVariable Long comandaId
     ) {
-        return ResponseEntity.ok(pedidoService.findByComanda(comandaId));
+        return ResponseEntity.ok(
+                pedidoService.findByComanda(comandaId)
+        );
     }
 
     @GetMapping("/participante/{clienteSessaoId}")
@@ -50,16 +52,27 @@ public class PedidoController {
     public ResponseEntity<List<Pedido>> findByStatus(
             @PathVariable StatusPedido status
     ) {
-        return ResponseEntity.ok(pedidoService.findByStatus(status));
+        return ResponseEntity.ok(
+                pedidoService.findByStatus(status)
+        );
     }
 
-    @PostMapping("/participante/{clienteSessaoId}")
+    @GetMapping("/meus")
+    public ResponseEntity<List<Pedido>> listarMeusPedidos(
+            @RequestHeader("X-Cliente-Token") String tokenAcesso
+    ) {
+        return ResponseEntity.ok(
+                pedidoService.findByTokenAcesso(tokenAcesso)
+        );
+    }
+
+    @PostMapping("/participante")
     public ResponseEntity<Pedido> criarPedido(
-            @PathVariable Long clienteSessaoId,
+            @RequestHeader("X-Cliente-Token") String tokenAcesso,
             @RequestBody CriarPedidoRequest request
     ) {
         Pedido pedido = pedidoService.criarPedido(
-                clienteSessaoId,
+                tokenAcesso,
                 request.produtos(),
                 request.observacao()
         );
