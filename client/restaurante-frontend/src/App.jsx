@@ -6,8 +6,9 @@ import {
   Settings,
   Users,
   ChefHat,
+  LogOut,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 
 const menuItems = [
@@ -21,9 +22,32 @@ const menuItems = [
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  if (location.pathname.startsWith("/comanda/")) {
+  if (
+    location.pathname.startsWith("/comanda/") ||
+    location.pathname === "/login"
+  ) {
     return <AppRoutes />;
+  }
+
+  async function handleLogout() {
+    try {
+      const resposta = await fetch("/api/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+
+      if (!resposta.ok) {
+        throw new Error("Não foi possível encerrar a sessão.");
+      }
+    } catch (error) {
+      alert(error.message || "Erro ao realizar logout.");
+      return;
+    }
+
+    localStorage.removeItem("adminAutenticado");
+    navigate("/login", { replace: true });
   }
 
   return (
@@ -37,7 +61,6 @@ function App() {
 
             <div>
               <h2 className="text-lg font-bold">Restaurante</h2>
-
               <p className="text-xs text-slate-400">
                 Sistema de gestão
               </p>
@@ -69,14 +92,24 @@ function App() {
           })}
         </nav>
 
-        <div className="hidden border-t border-white/10 p-5 md:block">
-          <p className="text-xs text-slate-500">
-            Sistema de comandas
-          </p>
+        <div className="border-t border-white/10 p-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-red-500/10 hover:text-red-400"
+          >
+            <LogOut size={19} />
+            <span>Sair</span>
+          </button>
 
-          <p className="mt-1 text-sm text-slate-300">
-            Ambiente de desenvolvimento
-          </p>
+          <div className="mt-3 hidden px-1 md:block">
+            <p className="text-xs text-slate-500">
+              Sistema de comandas
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              Ambiente de desenvolvimento
+            </p>
+          </div>
         </div>
       </aside>
 

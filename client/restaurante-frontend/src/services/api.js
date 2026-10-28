@@ -3,6 +3,7 @@ const API_URL = "/api";
 async function request(endpoint, options = {}) {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -17,6 +18,18 @@ async function request(endpoint, options = {}) {
       mensagem = erro.mensagem || erro.message || mensagem;
     } catch {
       mensagem = response.statusText || mensagem;
+    }
+
+    if (response.status === 401) {
+      localStorage.removeItem("adminAutenticado");
+
+      const rotaPublica =
+        window.location.pathname.startsWith("/comanda/") ||
+        window.location.pathname === "/login";
+
+      if (!rotaPublica) {
+        window.location.href = "/login";
+      }
     }
 
     throw new Error(mensagem);
